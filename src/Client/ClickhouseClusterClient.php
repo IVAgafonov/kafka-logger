@@ -52,7 +52,8 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 $client->setConnectTimeOut(5);
                 $this->clickhouseInstances[] = $client;
             } catch (\Throwable $e) {
-                sleep(1000);
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$clickhouseNodeConfig->host."; message: ".$e->getMessage()."\n");
+                sleep(1);
             }
         }
         if (!count($this->clickhouseInstances)) {
@@ -71,7 +72,12 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
     public function database(string $database = 'default'): void
     {
         foreach ($this->clickhouseInstances as $instance) {
-            $instance->database($database);
+            try {
+                $instance->database($database);
+            } catch (\Throwable $e) {
+                $instance->database($database);
+                sleep(1);
+            }
         }
     }
 
@@ -88,7 +94,8 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
             try {
                 return $instance->write($sql);
             } catch (\Throwable $e) {
-                sleep(1000);
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                sleep(1);
             }
         }
         throw new \RuntimeException('Clickhouse cluster is unavailable');
@@ -121,7 +128,8 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 $array = $res->rows();
                 return $array ?: [];
             } catch (\Throwable $e) {
-                sleep(1000);
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                sleep(1);
             }
         }
         throw new \RuntimeException('Clickhouse cluster is unavailable');
@@ -141,7 +149,8 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 $retArray = current($array);
                 return $retArray ?: [];
             } catch (\Throwable $e) {
-                sleep(1000);
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                sleep(1);
             }
         }
         throw new \RuntimeException('Clickhouse cluster is unavailable');
@@ -174,7 +183,8 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 }
                 return null;
             } catch (\Throwable $e) {
-                sleep(1000);
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                sleep(1);
             }
         }
         throw new \RuntimeException('Clickhouse cluster is unavailable');
@@ -219,7 +229,8 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 $instance->insertAssocBulk($table, $rows);
                 return;
             } catch (\Throwable $e) {
-                sleep(1000);
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                sleep(1);
             }
         }
         throw new \RuntimeException('Clickhouse cluster is unavailable');
@@ -237,7 +248,8 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 $instance->truncateTable($table);
                 return;
             } catch (\Throwable $e) {
-                sleep(1000);
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                sleep(1);
             }
         }
         throw new \RuntimeException('Clickhouse cluster is unavailable');
