@@ -1,7 +1,7 @@
 {
     "name": "iagafonov/ch-cluster-client",
     "description": "Clickhouse cluster client",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -18,7 +18,7 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
-        "smi2/phpclickhouse": "^1.4",
+        "smi2/phpclickhouse": "^1.3",
         "ext-redis": "*"
     }
 }

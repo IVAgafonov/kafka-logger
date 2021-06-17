@@ -25,6 +25,32 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
     private $clickhouseInstances;
 
     /**
+     * [tableName => [timestamp => int, list => items]]
+     * @var array
+     */
+    private $inmemoryCache = [];
+
+    /**
+     * @var int
+     */
+    private $listLimit = 20000;
+
+    /**
+     * @var int
+     */
+    private $timeLimit = 60;
+
+    /**
+     * @var string
+     */
+    private $redisKey = 'ch_cluster_cache:';
+
+    /**
+     * @var array
+     */
+    private $tablesMap = [];
+
+    /**
      * ClickhouseClusterClient constructor.
      * @param ClickhouseNodeConfig[] $clickhouseNodeConfigs
      * @param RedisConfig $redisConfig
@@ -52,7 +78,7 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 $client->setConnectTimeOut(5);
                 $this->clickhouseInstances[] = $client;
             } catch (\Throwable $e) {
-                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$clickhouseNodeConfig->host."; message: ".$e->getMessage()."\n");
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$clickhouseNodeConfig->host."; message: ".$e->getMessage()."\n", FILE_APPEND);
                 sleep(1);
             }
         }
@@ -86,15 +112,13 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
      */
     public function query(string $sql): Statement
     {
-        //to cache
-
         shuffle($this->clickhouseInstances);
 
         foreach ($this->clickhouseInstances as $instance) {
             try {
                 return $instance->write($sql);
             } catch (\Throwable $e) {
-                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n", FILE_APPEND);
                 sleep(1);
             }
         }
@@ -128,7 +152,7 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 $array = $res->rows();
                 return $array ?: [];
             } catch (\Throwable $e) {
-                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n", FILE_APPEND);
                 sleep(1);
             }
         }
@@ -149,7 +173,7 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 $retArray = current($array);
                 return $retArray ?: [];
             } catch (\Throwable $e) {
-                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n", FILE_APPEND);
                 sleep(1);
             }
         }
@@ -183,7 +207,7 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 }
                 return null;
             } catch (\Throwable $e) {
-                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n", FILE_APPEND);
                 sleep(1);
             }
         }
@@ -221,19 +245,9 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
      */
     public function insertMultiple(string $table, array $rows): void
     {
-        shuffle($this->clickhouseInstances);
-
-        foreach ($this->clickhouseInstances as $instance) {
-            try {
-                $rows = array_values($rows);
-                $instance->insertAssocBulk($table, $rows);
-                return;
-            } catch (\Throwable $e) {
-                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
-                sleep(1);
-            }
-        }
-        throw new \RuntimeException('Clickhouse cluster is unavailable');
+        $this->tablesMap[$table] = 1;
+        $this->setIntoCache($table, $rows);
+        $this->writeCache($table);
     }
 
     /**
@@ -248,10 +262,77 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
                 $instance->truncateTable($table);
                 return;
             } catch (\Throwable $e) {
-                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n");
+                file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n", FILE_APPEND);
                 sleep(1);
             }
         }
         throw new \RuntimeException('Clickhouse cluster is unavailable');
+    }
+
+    private function setIntoCache(string $table, array $rows): void
+    {
+        file_put_contents('/tmp/clickhouse_cluster_debug', "write block into cache\n", FILE_APPEND);
+        $this->redisInstance->setnx($this->redisKey.$table.':ts', time());
+        $this->redisInstance->rPush($this->redisKey.$table, ...$rows);
+//        if (!isset($this->inmemoryCache[$table])) {
+//
+//            $this->inmemoryCache[$table] = [
+//                'timestamp' => time(),
+//                'list' => array_values($rows)
+//            ];
+//        } else {
+//            $this->inmemoryCache[$table]['list'] = array_merge($this->inmemoryCache[$table]['list'], array_values($rows));
+//        }
+    }
+
+    private function getFromCache(string $table): array
+    {
+        $this->redisInstance->del($this->redisKey.$table.':ts');
+        return $this->redisInstance->lRange($this->redisKey.$table, 0, -1);
+    }
+
+    /**
+     * @param string $table
+     * @param bool $force
+     */
+    private function writeCache(string $table, bool $force = false): void
+    {
+        if ($force ||
+            ((int) $this->redisInstance->get($this->redisKey.$table.':ts')) + $this->timeLimit < time() ||
+            $this->redisInstance->lLen($this->redisKey.$table) > $this->listLimit
+        ) {
+            file_put_contents('/tmp/clickhouse_cluster_debug', "write block into clickhouse\n", FILE_APPEND);
+            shuffle($this->clickhouseInstances);
+
+            foreach ($this->clickhouseInstances as $instance) {
+                try {
+                    $this->redisInstance->multi();
+                    $this->redisInstance->lRange($this->redisKey.$table, 0, -1);
+                    $this->redisInstance->del($this->redisKey.$table);
+                    $this->redisInstance->del($this->redisKey.$table.':ts');
+                    $rows = $this->redisInstance->exec();
+
+                    if (!empty($rows[0])) {
+                        $instance->insertAssocBulk($table, $rows[0]);
+                        file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: successfully written\n", FILE_APPEND);
+                    }
+                    return;
+                } catch (\Throwable $e) {
+                    file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: ".$e->getMessage()."\n", FILE_APPEND);
+                    sleep(1);
+                }
+            }
+            throw new \RuntimeException('Clickhouse cluster is unavailable');
+        }
+    }
+
+    /**
+     * Destruct
+     */
+    public function __destruct()
+    {
+        foreach (array_keys($this->tablesMap) as $table) {
+            $this->writeCache($table, true);
+        }
     }
 }
