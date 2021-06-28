@@ -301,16 +301,26 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
             file_put_contents('/tmp/clickhouse_cluster_debug', "write block into clickhouse\n", FILE_APPEND);
             shuffle($this->clickhouseInstances);
 
+            $this->redisInstance->multi();
+            $this->redisInstance->lRange($this->redisKey.$table, 0, -1);
+            $this->redisInstance->del($this->redisKey.$table);
+            $this->redisInstance->del($this->redisKey.$table.':ts');
+            $rows = $this->redisInstance->exec();
+
             foreach ($this->clickhouseInstances as $instance) {
                 try {
-                    $this->redisInstance->multi();
-                    $this->redisInstance->lRange($this->redisKey.$table, 0, -1);
-                    $this->redisInstance->del($this->redisKey.$table);
-                    $this->redisInstance->del($this->redisKey.$table.':ts');
-                    $rows = $this->redisInstance->exec();
-
                     if (!empty($rows[0])) {
-                        $instance->insertAssocBulk($table, $rows[0]);
+                        $rowsBulkByFields = [];
+                        foreach ($rows[0] as $row) {
+                            $keys = implode("", array_keys($row));
+                            if (!isset($rowsBulkByFields[$keys])) {
+                                $rowsBulkByFields[$keys] = [];
+                            }
+                            $rowsBulkByFields[$keys][] = $row;
+                        }
+                        foreach ($rowsBulkByFields as $rowsBulk) {
+                            $instance->insertAssocBulk($table, $rowsBulk);
+                        }
                         file_put_contents('/tmp/clickhouse_cluster_debug', "host: ".$instance->getConnectHost()."; message: successfully written\n", FILE_APPEND);
                     }
                     return;
