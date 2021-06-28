@@ -25,12 +25,6 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
     private $clickhouseInstances;
 
     /**
-     * [tableName => [timestamp => int, list => items]]
-     * @var array
-     */
-    private $inmemoryCache = [];
-
-    /**
      * @var int
      */
     private $listLimit = 20000;
@@ -46,23 +40,26 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
     private $redisKey = 'ch_cluster_cache:';
 
     /**
-     * @var array
-     */
-    private $tablesMap = [];
-
-    /**
      * ClickhouseClusterClient constructor.
      * @param ClickhouseNodeConfig[] $clickhouseNodeConfigs
-     * @param RedisConfig $redisConfig
+     * @param RedisConfig|null $redisConfig
+     * @param Redis|null $redisInstance
      */
-    public function __construct(array $clickhouseNodeConfigs, RedisConfig $redisConfig)
+    public function __construct(array $clickhouseNodeConfigs, RedisConfig $redisConfig = null, Redis $redisInstance = null)
     {
-        $this->redisInstance = new Redis();
-        $this->redisInstance->connect($redisConfig->host, $redisConfig->port);
-        if ($redisConfig->password) {
-            $this->redisInstance->auth($redisConfig->password);
+        if (!$redisInstance) {
+            $this->redisInstance = new Redis();
+            $this->redisInstance->connect($redisConfig->host, $redisConfig->port);
+            if ($redisConfig->password) {
+                $this->redisInstance->auth($redisConfig->password);
+            }
+            $this->redisInstance->setOption(\Redis::OPT_SERIALIZER, (string) \Redis::SERIALIZER_PHP);
+        } else {
+            $this->redisInstance = $redisInstance;
         }
-        $this->redisInstance->setOption(\Redis::OPT_SERIALIZER, (string) \Redis::SERIALIZER_PHP);
+        if (!$this->redisInstance) {
+            throw new \RuntimeException('Invalid redis config');
+        }
         foreach ($clickhouseNodeConfigs as $clickhouseNodeConfig) {
             try {
                 $client = new Client([
@@ -245,7 +242,7 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
      */
     public function insertMultiple(string $table, array $rows): void
     {
-        $this->tablesMap[$table] = 1;
+        $this->redisInstance->sAdd($this->redisKey."table_list", $table);
         $this->setIntoCache($table, $rows);
         $this->writeCache($table);
     }
@@ -327,12 +324,13 @@ class ClickhouseClusterClient implements ClickhouseClusterClientInterface
     }
 
     /**
-     * Destruct
+     * @param bool $force
      */
-    public function __destruct()
+    public function dump($force = false)
     {
-        foreach (array_keys($this->tablesMap) as $table) {
-            $this->writeCache($table, true);
+        $tables = $this->redisInstance->sMembers($this->redisKey."table_list");
+        foreach ($tables as $table) {
+            $this->writeCache($table, $force);
         }
     }
 }
