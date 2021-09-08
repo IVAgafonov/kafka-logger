@@ -38,7 +38,7 @@ class KafkaLogger implements LoggerInterface {
         $this->service = $service;
 
         $conf = new \RdKafka\Conf();
-        $conf->set('log_level', (string) LOG_DEBUG);
+        $conf->set('log_level', (string) LOG_INFO);
         $conf->set('debug', 'all');
 
         $this->producer = new Producer($conf);
