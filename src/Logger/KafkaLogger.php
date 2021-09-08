@@ -39,7 +39,9 @@ class KafkaLogger implements LoggerInterface {
 
         $conf = new \RdKafka\Conf();
         $conf->set('log_level', (string) $log_level);
-        $conf->set('debug', 'all');
+        if ($log_level === LOG_DEBUG) {
+            $conf->set('debug', 'all');
+        }
 
         $this->producer = new Producer($conf);
         $this->producer->addBrokers(implode(",", $config->hosts));
