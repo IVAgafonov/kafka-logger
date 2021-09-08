@@ -16,10 +16,10 @@ class KafkaConfig
 
     /**
      * AbstractExternalServiceConfig constructor.
-     * @param string $hosts
+     * @param string[] $hosts
      * @param string $topic
      */
-    public function __construct(string $hosts, string $topic)
+    public function __construct(array $hosts, string $topic)
     {
         $this->hosts = $hosts;
         $this->topic = $topic;
