@@ -32,13 +32,13 @@ class KafkaLogger implements LoggerInterface {
      */
     private $producer;
 
-    public function __construct(KafkaConfig $config, string $app = 'default_app', string $service = 'default_service')
+    public function __construct(KafkaConfig $config, string $app = 'default_app', string $service = 'default_service', string $log_level = LOG_INFO)
     {
         $this->app = $app;
         $this->service = $service;
 
         $conf = new \RdKafka\Conf();
-        $conf->set('log_level', (string) LOG_INFO);
+        $conf->set('log_level', (string) $log_level);
         $conf->set('debug', 'all');
 
         $this->producer = new Producer($conf);

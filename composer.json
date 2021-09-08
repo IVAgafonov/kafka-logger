@@ -1,7 +1,7 @@
 {
     "name": "iagafonov/ch-cluster-client",
     "description": "Clickhouse cluster client",
-    "version": "2.0.3",
+    "version": "2.0.4",
     "type": "library",
     "license": "MIT",
     "authors": [
