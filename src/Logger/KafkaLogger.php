@@ -3,14 +3,13 @@
 namespace KafkaLogger\Logger;
 
 use KafkaLogger\Config\KafkaConfig;
-use Psr\Log\LoggerInterface;
 use Psr\Log\LogLevel;
 use RdKafka\Producer;
 
 /**
  *
  */
-class KafkaLogger implements LoggerInterface {
+class KafkaLogger implements AppLoggerInterface {
 
     /**
      * @var string
