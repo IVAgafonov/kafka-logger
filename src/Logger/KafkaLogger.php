@@ -15,12 +15,47 @@ class KafkaLogger implements LoggerInterface {
     /**
      * @var string
      */
-    private $app;
+    private $server = '';
 
     /**
      * @var string
      */
-    private $service;
+    private $env = '';
+
+    /**
+     * @var string
+     */
+    private $app = '';
+
+    /**
+     * @var int
+     */
+    private $user_id = 0;
+
+    /**
+     * @var string
+     */
+    private $service = '';
+
+    /**
+     * @var string
+     */
+    private $project_type = '';
+
+    /**
+     * @var int
+     */
+    private $project_id = 0;
+
+    /**
+     * @var string
+     */
+    private $item_type = '';
+
+    /**
+     * @var int
+     */
+    private $item_id = 0;
 
     /**
      * @var \RdKafka\ProducerTopic
@@ -50,6 +85,26 @@ class KafkaLogger implements LoggerInterface {
     }
 
     /**
+     * @param string $server
+     * @return $this
+     */
+    public function setServer(string $server): self
+    {
+        $this->server = $server;
+        return $this;
+    }
+
+    /**
+     * @param string $env
+     * @return $this
+     */
+    public function setEnv(string $env): self
+    {
+        $this->env = $env;
+        return $this;
+    }
+
+    /**
      * @param string $app
      * @return $this
      */
@@ -60,12 +115,62 @@ class KafkaLogger implements LoggerInterface {
     }
 
     /**
+     * @param int $user_id
+     * @return $this
+     */
+    public function setUserId(int $user_id): self
+    {
+        $this->user_id = $user_id;
+        return $this;
+    }
+
+    /**
      * @param string $service
      * @return $this
      */
     public function setService(string $service): self
     {
         $this->service = $service;
+        return $this;
+    }
+
+    /**
+     * @param string $project_type
+     * @return $this
+     */
+    public function setProjectType(string $project_type): self
+    {
+        $this->project_type = $project_type;
+        return $this;
+    }
+
+    /**
+     * @param int $project_id
+     * @return $this
+     */
+    public function setProjectId(int $project_id): self
+    {
+        $this->project_id = $project_id;
+        return $this;
+    }
+
+    /**
+     * @param string $item_type
+     * @return $this
+     */
+    public function setItemType(string $item_type): self
+    {
+        $this->item_type = $item_type;
+        return $this;
+    }
+
+    /**
+     * @param int $item_id
+     * @return $this
+     */
+    public function setItemId(int $item_id): self
+    {
+        $this->item_id = $item_id;
         return $this;
     }
 
@@ -156,8 +261,15 @@ class KafkaLogger implements LoggerInterface {
                 [
                     'Date' => substr($date, 0, 10),
                     'DateTime' => $date,
+                    'Server' => $this->server,
+                    'Env' => $this->env,
                     'App' => $this->app,
-                    'Name' => $this->service,
+                    'Service' => $this->service,
+                    'UserId' => $this->user_id,
+                    'ProjectType' => $this->project_type,
+                    'ProjectId' => $this->project_id,
+                    'ItemType' => $this->item_type,
+                    'ItemId' => $this->item_id,
                     'Level' => $level,
                     'Message' => $message,
                     'ExtraData' => json_encode($context)
