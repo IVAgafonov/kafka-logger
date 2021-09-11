@@ -66,7 +66,7 @@ class KafkaLogger implements AppLoggerInterface {
      */
     private $producer;
 
-    public function __construct(KafkaConfig $config, string $app = 'default_app', string $service = 'default_service', string $log_level = LOG_INFO)
+    public function __construct(KafkaConfig $config, string $app = 'default_app', string $service = 'default_service', int $log_level = LOG_INFO)
     {
         $this->app = $app;
         $this->service = $service;
