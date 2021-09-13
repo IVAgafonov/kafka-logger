@@ -57,9 +57,19 @@ class KafkaLogger implements AppLoggerInterface {
     private $item_id = 0;
 
     /**
+     * @var KafkaConfig
+     */
+    private $config;
+
+    /**
      * @var \RdKafka\ProducerTopic
      */
     private $kafka_stream_topic;
+
+    /**
+     * @var int
+     */
+    private $log_level;
 
     /**
      * @var Producer
@@ -70,6 +80,8 @@ class KafkaLogger implements AppLoggerInterface {
     {
         $this->app = $app;
         $this->service = $service;
+        $this->config = $config;
+        $this->log_level = $log_level;
 
         $conf = new \RdKafka\Conf();
         $conf->set('log_level', (string) $log_level);
@@ -81,6 +93,11 @@ class KafkaLogger implements AppLoggerInterface {
         $this->producer->addBrokers(implode(",", $config->hosts));
 
         $this->kafka_stream_topic = $this->producer->newTopic($config->topic);
+    }
+
+    public function __clone()
+    {
+        return new static($this->config, $this->app, $this->service, $this->log_level);
     }
 
     /**
