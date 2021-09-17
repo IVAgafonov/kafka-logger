@@ -288,7 +288,7 @@ class KafkaLogger implements AppLoggerInterface {
                     'ItemId' => $this->item_id,
                     'Level' => $level,
                     'Message' => $message,
-                    'ExtraData' => json_encode($context)
+                    'ExtraData' => (string) json_encode($context)
                 ]
             )
         );
