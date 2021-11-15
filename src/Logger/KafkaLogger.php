@@ -12,6 +12,16 @@ use RdKafka\Producer;
 class KafkaLogger implements AppLoggerInterface {
 
     /**
+     * @var int
+     */
+    private $ord = 0;
+
+    /**
+     * @var int
+     */
+    private $pid = 0;
+
+    /**
      * @var string
      */
     private $server = '';
@@ -82,6 +92,7 @@ class KafkaLogger implements AppLoggerInterface {
         $this->service = $service;
         $this->config = $config;
         $this->log_level = $log_level;
+        $this->pid = (int) getmypid();
 
         $conf = new \RdKafka\Conf();
         $conf->set('log_level', (string) $log_level);
@@ -277,6 +288,8 @@ class KafkaLogger implements AppLoggerInterface {
                 [
                     'Date' => substr($date, 0, 10),
                     'DateTime' => $date,
+                    'Ord' => ++$this->ord,
+                    'Pid' => $this->pid,
                     'Server' => $this->server,
                     'Env' => $this->env,
                     'App' => $this->app,
