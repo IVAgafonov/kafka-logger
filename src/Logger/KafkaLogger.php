@@ -4,87 +4,89 @@ namespace KafkaLogger\Logger;
 
 use KafkaLogger\Config\KafkaConfig;
 use Psr\Log\LogLevel;
+use RdKafka\Conf;
 use RdKafka\Producer;
+use RdKafka\ProducerTopic;
 
 /**
  *
  */
-class KafkaLogger implements AppLoggerInterface {
+abstract class KafkaLogger implements AppLoggerInterface {
 
     /**
      * @var int
      */
-    private $ord = 0;
+    protected $ord = 0;
 
     /**
      * @var int
      */
-    private $pid = 0;
+    protected $pid = 0;
 
     /**
      * @var string
      */
-    private $server = '';
+    protected $server = '';
 
     /**
      * @var string
      */
-    private $env = '';
+    protected $env = '';
 
     /**
      * @var string
      */
-    private $app = '';
+    protected $app = '';
 
     /**
      * @var int
      */
-    private $user_id = 0;
+    protected $user_id = 0;
 
     /**
      * @var string
      */
-    private $service = '';
+    protected $service = '';
 
     /**
      * @var string
      */
-    private $project_type = '';
+    protected $project_type = '';
 
     /**
      * @var int
      */
-    private $project_id = 0;
+    protected $project_id = 0;
 
     /**
      * @var string
      */
-    private $item_type = '';
+    protected $item_type = '';
 
     /**
      * @var int
      */
-    private $item_id = 0;
+    protected $item_id = 0;
 
     /**
      * @var KafkaConfig
      */
-    private $config;
+    protected $config;
 
     /**
-     * @var \RdKafka\ProducerTopic
+     * @var ProducerTopic
      */
-    private $kafka_stream_topic;
+    protected $kafka_stream_topic;
 
     /**
      * @var int
      */
-    private $log_level;
+    protected $log_level;
 
     /**
      * @var Producer
      */
-    private $producer;
+    protected $producer;
 
     public function __construct(KafkaConfig $config, string $app = 'default_app', string $service = 'default_service', int $log_level = LOG_INFO)
     {
@@ -94,7 +96,7 @@ class KafkaLogger implements AppLoggerInterface {
         $this->log_level = $log_level;
         $this->pid = (int) getmypid();
 
-        $conf = new \RdKafka\Conf();
+        $conf = new Conf();
         $conf->set('log_level', (string) $log_level);
         if ($log_level === LOG_DEBUG) {
             $conf->set('debug', 'all');
@@ -278,40 +280,5 @@ class KafkaLogger implements AppLoggerInterface {
      * @param string $message
      * @param array $context
      */
-    public function log($level, $message, array $context = array())
-    {
-        $date = date('Y-m-d H:i:s');
-        $this->kafka_stream_topic->produce(
-            rand(0, 2),
-            0,
-            json_encode(
-                [
-                    'Date' => substr($date, 0, 10),
-                    'DateTime' => $date,
-                    'Ord' => ++$this->ord,
-                    'Pid' => $this->pid,
-                    'Server' => $this->server,
-                    'Env' => $this->env,
-                    'App' => $this->app,
-                    'Service' => $this->service,
-                    'UserId' => $this->user_id,
-                    'ProjectType' => $this->project_type,
-                    'ProjectId' => $this->project_id,
-                    'ItemType' => $this->item_type,
-                    'ItemId' => $this->item_id,
-                    'Level' => $level,
-                    'Message' => $message,
-                    'ExtraData' => (string) json_encode($context)
-                ]
-            )
-        );
-        $start = microtime(true);
-        while ($this->producer->getOutQLen() > 0) {
-            $this->producer->poll(0);
-
-            if (microtime(true) - $start > 10) {
-                throw new \RuntimeException("Can't write log");
-            }
-        }
-    }
+    abstract public function log($level, $message, array $context = array());
 }

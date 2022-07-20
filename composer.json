@@ -1,7 +1,7 @@
 {
-    "name": "iagafonov/ch-cluster-client",
-    "description": "Clickhouse cluster client",
-    "version": "2.0.11",
+    "name": "iagafonov/kafka-logger",
+    "description": "Kafka logger client",
+    "version": "3.0.1",
     "type": "library",
     "license": "MIT",
     "authors": [

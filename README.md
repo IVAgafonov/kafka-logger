@@ -1,2 +1,2 @@
-# ch-cluster-client
-Clickhouse cluster client
+# kafka-logger-client
+Kafka logger client
