@@ -25,6 +25,7 @@ class GelfKafkaLogger extends KafkaLogger
                         'date' => substr($date, 0, 10),
                         'pid' => $this->pid,
                         'server' => $this->server,
+                        'host' => $this->server,
                         'env' => $this->env,
                         'app' => $this->app,
                         'service' => $this->service,
